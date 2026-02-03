@@ -8,7 +8,7 @@ import re
 
 app = Flask(__name__)
 
-# MongoDB 连接
+# 你的 MongoDB 地址
 MONGO_URI = "mongodb+srv://24jn0321:ZAtU3rP88qdSLexw@cluster0.lxjfxh5.mongodb.net/?appName=Cluster0"
 client = MongoClient(MONGO_URI)
 db = client['receipt_db']
@@ -18,21 +18,21 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8"><title>轻量版收据解析</title>
+    <meta charset="UTF-8"><title>收据解析-轻量版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f4f7f9; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .price { color: #e74c3c; font-weight: bold; float: right; }
+        body { font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .price { color: #d9534f; font-weight: bold; float: right; }
         .btn { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h2>📜 轻量版解析器 (RAM 优化)</h2>
+    <h2>🧾 收据解析 (轻量优化版)</h2>
     <div class="card">
         <form method="post" enctype="multipart/form-data">
             <input type="file" name="file" accept="image/*" required>
-            <button type="submit" class="btn" style="margin-top:10px;">上传解析</button>
+            <button type="submit" class="btn" style="margin-top:10px;">开始解析</button>
         </form>
     </div>
     {% for item in items %}
@@ -51,17 +51,19 @@ def index():
         file = request.files.get('file')
         if file:
             img = Image.open(file.stream)
-            # 使用轻量级引擎解析日语和英语
-            text = pytesseract.image_to_string(img, lang='jpn+eng')
+            # 使用轻量引擎提取文本
+            text = pytesseract.image_to_string(img, lang='eng+jpn')
             
-            # 简单的金额提取逻辑
+            # 查找金额数字
             lines = text.split('\n')
             for line in lines:
-                if any(c.isdigit() for c in line):
-                    price = ''.join(filter(str.isdigit, line))
-                    if price and len(price) < 7: # 过滤掉电话号码等长数字
+                nums = re.findall(r'\d+', line)
+                if nums:
+                    price = nums[-1] # 取最后一段数字通常是金额
+                    if 1 < len(price) < 6: # 简单过滤日期或电话
                         collection.insert_one({
-                            "name": line[:15], "price": int(price),
+                            "name": line[:15] or "未命名商品",
+                            "price": int(price),
                             "date": datetime.now().strftime("%Y-%m-%d %H:%M")
                         })
     
